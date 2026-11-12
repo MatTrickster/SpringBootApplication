@@ -100,10 +100,33 @@ class TradeControllerIntegrationTest {
     }
 
     @Test
-    void updateAndDelete_return405() throws Exception {
+    void createTrade_returns400ForLowercaseSymbol_customValidator() throws Exception {
+        postTrade(tradeJson("buy", 1, "abx"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.symbol").value("must be 1-5 uppercase letters, e.g. ABX"));
+    }
+
+    @Test
+    void update_returns405() throws Exception {
         mockMvc.perform(put("/trades/1").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void delete_existingTrade_returns204AndTradeIsGone() throws Exception {
+        postTrade(tradeJson("buy", 1, "AAA")).andExpect(status().isCreated());
+
         mockMvc.perform(delete("/trades/1"))
-                .andExpect(status().isMethodNotAllowed());
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/trades/1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_missingTrade_returns404() throws Exception {
+        mockMvc.perform(delete("/trades/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Trade not found with id 999"));
     }
 }

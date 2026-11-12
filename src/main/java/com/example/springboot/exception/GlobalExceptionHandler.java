@@ -2,7 +2,8 @@ package com.example.springboot.exception;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -19,12 +20,28 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * RFC 9457 ProblemDetail bodies for Spring MVC's built-in exceptions
  * (405 method not allowed, 415 unsupported media type, malformed JSON, ...).
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ProblemDetail handleDuplicate(DuplicateResourceException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
+     * Safety net for a DB unique-constraint violation that slipped past the service-level
+     * duplicate check (e.g. two concurrent POSTs). The SQL message is not returned to the client.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Request conflicts with existing data");
     }
 
     /** Adds a field -> message map so clients know which input was wrong. */

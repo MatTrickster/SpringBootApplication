@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Verifies profile resolution: default profile, profile overrides, fallback to
- * base application.properties, and @Profile-conditional beans.
+ * base application.properties, @Profile beans and @ConditionalOnProperty beans.
  */
 class ConfigControllerProfilesTest {
 
@@ -33,7 +33,9 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.featureXEnabled").value(true))
                     // not set in application-dev -> inherited from application.properties
                     .andExpect(jsonPath("$.maxPageSize").value(20))
-                    .andExpect(jsonPath("$.notificationChannel").value("console"));
+                    .andExpect(jsonPath("$.defaultUser").value("admin"))
+                    .andExpect(jsonPath("$.notificationChannel").value("console"))
+                    .andExpect(jsonPath("$.tradeEventPublisher").value("logging"));
         }
     }
 
@@ -50,7 +52,10 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.activeProfiles[0]").value("qa"))
                     .andExpect(jsonPath("$.environmentName").value("qa"))
                     .andExpect(jsonPath("$.maxPageSize").value(50))
-                    .andExpect(jsonPath("$.supportEmail").value("support@example.com"));
+                    .andExpect(jsonPath("$.supportEmail").value("support@example.com"))
+                    .andExpect(jsonPath("$.defaultUser").value("qa-user"))
+                    // app.trade-events.enabled=false -> havingValue="false" branch
+                    .andExpect(jsonPath("$.tradeEventPublisher").value("noop"));
         }
     }
 
@@ -68,7 +73,27 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.featureXEnabled").value(false))
                     .andExpect(jsonPath("$.maxPageSize").value(100))
                     .andExpect(jsonPath("$.supportEmail").value("staging-support@example.com"))
-                    .andExpect(jsonPath("$.notificationChannel").value("email"));
+                    // staging doesn't set app.default-user -> inherited from application.properties
+                    .andExpect(jsonPath("$.defaultUser").value("alice"))
+                    .andExpect(jsonPath("$.notificationChannel").value("email"))
+                    // property missing entirely -> matchIfMissing = true picks no-op
+                    .andExpect(jsonPath("$.tradeEventPublisher").value("noop"));
+        }
+    }
+
+    /** Flip a @ConditionalOnProperty from a test, without creating a new profile. */
+    @Nested
+    @SpringBootTest(properties = "app.trade-events.enabled=true")
+    @AutoConfigureMockMvc
+    @ActiveProfiles("staging")
+    class StagingWithEventsForcedOn {
+        @Autowired MockMvc mockMvc;
+
+        @Test
+        void propertyOverrideSelectsLoggingPublisher() throws Exception {
+            mockMvc.perform(get("/config"))
+                    .andExpect(jsonPath("$.environmentName").value("staging"))
+                    .andExpect(jsonPath("$.tradeEventPublisher").value("logging"));
         }
     }
 }

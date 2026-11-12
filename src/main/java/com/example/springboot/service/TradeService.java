@@ -19,11 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class TradeService {
 
     private final TradeRepository tradeRepository;
+    private final TradeEventPublisher tradeEventPublisher; // which bean: see config/TradeEventsConfig
 
     @Transactional
     public Trade create(TradeRequest request) {
         Trade saved = tradeRepository.save(request.toEntity());
         log.info("Created trade id={} symbol={}", saved.getId(), saved.getSymbol());
+        tradeEventPublisher.tradeCreated(saved);
         return saved;
     }
 
@@ -45,10 +47,11 @@ public class TradeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Trade", id));
     }
 
+    /** 404 if missing: Spring Data 3+ deleteById() silently ignores unknown ids. */
     @Transactional
-    public void delete(Long id){
+    public void delete(Long id) {
         Trade trade = findById(id);
-        tradeRepository.deleteById(id);
+        tradeRepository.delete(trade);
         log.info("Deleted trade id={}", id);
     }
 }

@@ -11,6 +11,7 @@ import java.util.Optional;
 import com.example.springboot.dto.TradeRequest;
 import com.example.springboot.entity.Trade;
 import com.example.springboot.repository.TradeRepository;
+import com.example.springboot.service.TradeEventPublisher;
 import com.example.springboot.service.TradeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,9 @@ class TradeServiceTest {
 
     @Mock
     private TradeRepository repository;
+
+    @Mock
+    private TradeEventPublisher eventPublisher;
 
     @InjectMocks
     private TradeService service;
@@ -47,6 +51,25 @@ class TradeServiceTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(23);
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getSymbol()).isEqualTo("ABX");
+        Mockito.verify(eventPublisher).tradeCreated(result);
+    }
+
+    @Test
+    void delete_missingTrade_throwsAndDeletesNothing() {
+        given(repository.findById(9L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(9L)).isInstanceOf(ResourceNotFoundException.class);
+        Mockito.verify(repository, Mockito.never()).delete(any(Trade.class));
+    }
+
+    @Test
+    void delete_existingTrade_deletesIt() {
+        Trade trade = Trade.builder().id(3L).build();
+        given(repository.findById(3L)).willReturn(Optional.of(trade));
+
+        service.delete(3L);
+
+        Mockito.verify(repository).delete(trade);
     }
 
     @Test

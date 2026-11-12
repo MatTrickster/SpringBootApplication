@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.example.springboot.config.AppProperties;
 import com.example.springboot.service.NotificationService;
+import com.example.springboot.service.TradeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,13 +18,16 @@ public class ConfigController {
     private final Environment environment;
     private final AppProperties appProperties;
     private final NotificationService notificationService;
+    private final TradeEventPublisher tradeEventPublisher;
 
     public record ConfigResponse(List<String> activeProfiles,
                                  String environmentName,
                                  boolean featureXEnabled,
                                  int maxPageSize,
                                  String supportEmail,
-                                 String notificationChannel) {
+                                 String defaultUser,
+                                 String notificationChannel,
+                                 String tradeEventPublisher) {
     }
 
     @GetMapping("/config")
@@ -34,7 +38,9 @@ public class ConfigController {
                 appProperties.featureXEnabled(),
                 appProperties.maxPageSize(),
                 appProperties.supportEmail(),
-                notificationService.channel());
+                appProperties.defaultUser(),
+                notificationService.channel(),
+                tradeEventPublisher.name());
     }
 
     /**

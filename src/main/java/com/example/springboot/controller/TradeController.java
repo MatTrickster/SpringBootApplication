@@ -22,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   POST   /trades          -> 201 + created trade (ids 1, 2, 3, ...)
  *   GET    /trades          -> 200 + all trades by id asc, optional ?type=&userId=
  *   GET    /trades/{id}     -> 200, or 404 if missing
- *   PUT/PATCH/DELETE /trades/{id} -> 405 (no handler mapped, Spring returns it for us)
+ *   DELETE /trades/{id}     -> 204, or 404 if missing
+ *   PUT/PATCH /trades/{id}  -> 405 (no handler mapped, Spring returns it for us)
  */
 @RestController
 @RequestMapping("/trades")
@@ -50,7 +51,7 @@ public class TradeController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteById(@PathVariable Long id){
+    public void deleteById(@PathVariable Long id) {
         tradeService.delete(id);
     }
 }

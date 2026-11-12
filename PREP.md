@@ -30,6 +30,13 @@ error responses**, **logging levels**.
 | Profiles, `spring.profiles.default`, `@ConfigurationProperties`, `@Profile` beans | `config/*`, `application-*.properties` |
 | Logging levels per profile | `application-dev/staging.properties`, `@Slf4j` in service |
 | Tests: `@SpringBootTest`, `@WebMvcTest`+`@MockitoBean`, `@DataJpaTest`, Mockito unit | `src/test/...` |
+| User module, default user per profile (Walmart-style) | `UserController`, `UserService.findDefaultUser`, `app.default-user` |
+| `@Value` (defaults, lists, SpEL) vs `@ConfigurationProperties` | `ValueDemoController` vs `AppProperties` |
+| `@ConditionalOnProperty` (incl. `matchIfMissing`) vs `@Profile` | `TradeEventsConfig` vs `NotificationConfig` |
+| `data.sql` (all profiles) vs `CommandLineRunner` (dev only) | `resources/data.sql`, `config/DataSeeder` |
+| Pagination: `PageRequest`, `Page`, size cap, page DTO | `UserService.findAll`, `dto/PageResponse` |
+| Business validation: duplicates → 409, custom constraint | `UserService.create`, `validation/StockSymbol` |
+| Concurrency: `ExecutorService.invokeAll`, `synchronized`, `Semaphore` | `PortfolioService`, `concurrency/*` |
 
 ## Commands
 

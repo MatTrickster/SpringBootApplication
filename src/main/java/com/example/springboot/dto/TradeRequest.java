@@ -1,6 +1,7 @@
 package com.example.springboot.dto;
 
 import com.example.springboot.entity.Trade;
+import com.example.springboot.validation.StockSymbol;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +16,7 @@ import jakarta.validation.constraints.Positive;
 public record TradeRequest(
         @NotBlank @Pattern(regexp = "buy|sell", message = "must be 'buy' or 'sell'") String type,
         @NotNull @Positive Integer userId,
-        @NotBlank String symbol,
+        @NotBlank @StockSymbol String symbol,   // custom constraint, see validation/StockSymbol
         @NotNull @Min(1) @Max(100) Integer shares,
         @NotNull @Positive Integer price,
         @NotNull Long timestamp) {

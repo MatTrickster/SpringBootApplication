@@ -90,7 +90,7 @@
       <label>Trade ID <input name="id" type="number" value="1"></label>
       <div class="actions" style="align-self:end">
         <button type="submit">GET /trades/{id}</button>
-        <button type="button" class="danger" id="delete-btn">DELETE (expect 405)</button>
+        <button type="button" class="danger" id="delete-btn">DELETE /trades/{id}</button>
       </div>
     </form>
   </section>
@@ -109,6 +109,46 @@
         <th scope="col">Shares</th><th scope="col">Price</th><th scope="col">Timestamp</th></tr></thead>
       <tbody id="trades"></tbody>
     </table>
+  </section>
+
+  <section class="wide" aria-labelledby="users-h">
+    <h2 id="users-h">Users <span class="muted">(GET /users, GET /users/default, POST /users)</span></h2>
+    <form id="users-form">
+      <label>Role
+        <select name="role">
+          <option value="">(any)</option>
+          <option value="admin">admin</option>
+          <option value="qa">qa</option>
+          <option value="user">user</option>
+          <option value="superuser">superuser (invalid, should get 400)</option>
+        </select>
+      </label>
+      <label>Page size <input name="size" type="number" value="2" min="1"></label>
+      <div class="actions">
+        <button type="submit">Search</button>
+        <button type="button" class="secondary" id="users-prev">‹ Prev page</button>
+        <button type="button" class="secondary" id="users-next">Next page ›</button>
+        <button type="button" class="secondary" id="default-user">GET /users/default</button>
+      </div>
+    </form>
+    <table style="margin-top:.75rem">
+      <caption class="muted" style="text-align:left;padding-bottom:.4rem" id="users-caption"></caption>
+      <thead><tr><th scope="col">ID</th><th scope="col">Username</th><th scope="col">Email</th>
+        <th scope="col">Role</th><th scope="col">Active</th></tr></thead>
+      <tbody id="users"></tbody>
+    </table>
+    <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+    <form id="user-create-form" novalidate>
+      <label>Username <input name="username" value="carol"></label>
+      <label>Email <input name="email" type="email" value="carol@example.com"></label>
+      <label>Role
+        <select name="role"><option>USER</option><option>QA</option><option>ADMIN</option></select>
+      </label>
+      <div class="actions" style="align-self:end">
+        <button type="submit">Create user</button>
+        <span class="muted">Try "admin" to see the 409 duplicate check.</span>
+      </div>
+    </form>
   </section>
 
   <section class="wide" aria-labelledby="log-h">
@@ -211,9 +251,10 @@
     const r = await call('GET', `/trades/${encodeURIComponent(id)}`);
     if (r.ok) renderTrades([r.data], `Trade ${id}`);
   });
-  $('delete-btn').addEventListener('click', () => {
+  $('delete-btn').addEventListener('click', async () => {
     const id = new FormData($('id-form')).get('id');
-    call('DELETE', `/trades/${encodeURIComponent(id)}`);
+    const r = await call('DELETE', `/trades/${encodeURIComponent(id)}`);
+    if (r.ok) await refreshListQuietly();
   });
 
   // Refresh the table after a create without overwriting the create response in the log.
@@ -222,8 +263,65 @@
     renderTrades(await res.json(), 'All trades, sorted by id');
   }
 
+  // ---------- Users ----------
+  let usersPage = 0;
+  let usersLast = true;
+
+  function renderUsers(users, caption) {
+    const tbody = $('users');
+    tbody.replaceChildren();
+    $('users-caption').textContent = caption;
+    if (!users.length) {
+      const td = tbody.insertRow().insertCell();
+      td.colSpan = 5; td.className = 'muted'; td.textContent = 'No users found.';
+      return;
+    }
+    for (const u of users) {
+      const tr = tbody.insertRow();
+      for (const v of [u.id, u.username, u.email, u.role, u.active ? 'yes' : 'no']) {
+        tr.insertCell().textContent = v;
+      }
+    }
+  }
+
+  async function loadUsers() {
+    const f = new FormData($('users-form'));
+    const params = new URLSearchParams({ page: usersPage, size: f.get('size') || 10 });
+    if (f.get('role')) params.set('role', f.get('role'));
+    const r = await call('GET', '/users?' + params);
+    if (!r.ok) return;
+    const p = r.data;
+    usersLast = p.last;
+    renderUsers(p.content,
+      `Page ${p.page + 1} of ${Math.max(p.totalPages, 1)} · ${p.totalElements} total · page size ${p.size}`);
+  }
+
+  $('users-form').addEventListener('submit', (e) => { e.preventDefault(); usersPage = 0; loadUsers(); });
+  $('users-prev').addEventListener('click', () => { if (usersPage > 0) { usersPage--; loadUsers(); } });
+  $('users-next').addEventListener('click', () => { if (!usersLast) { usersPage++; loadUsers(); } });
+  $('default-user').addEventListener('click', async () => {
+    const r = await call('GET', '/users/default');
+    if (r.ok) renderUsers([r.data], 'Default user for the active profile');
+  });
+  $('user-create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const r = await call('POST', '/users',
+      { username: f.get('username'), email: f.get('email'), role: f.get('role') });
+    if (r.ok) { usersPage = 0; await loadUsersQuietly(); }
+  });
+
+  async function loadUsersQuietly() {
+    const size = $('users-form').elements.namedItem('size').value || 10;
+    const res = await fetch('/users?page=0&size=' + encodeURIComponent(size));
+    const p = await res.json();
+    usersLast = p.last;
+    renderUsers(p.content, `Page 1 of ${Math.max(p.totalPages, 1)} · ${p.totalElements} total`);
+  }
+
   loadConfig();
   refreshListQuietly();
+  loadUsersQuietly();
 </script>
 </body>
 </html>
