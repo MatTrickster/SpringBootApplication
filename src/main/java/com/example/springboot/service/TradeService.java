@@ -44,4 +44,11 @@ public class TradeService {
         return tradeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Trade", id));
     }
+
+    @Transactional
+    public void delete(Long id){
+        Trade trade = findById(id);
+        tradeRepository.deleteById(id);
+        log.info("Deleted trade id={}", id);
+    }
 }
