@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trades API Playground</title>
+  <style>
+    :root { --bg:#f5f7fa; --card:#fff; --text:#1a1f36; --muted:#4a5468; --accent:#0b5cad;
+            --ok:#0f7b3f; --err:#b42318; --border:#d5dae3; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+           background:var(--bg); color:var(--text); line-height:1.45; }
+    header { background:var(--accent); color:#fff; padding:1rem 1.5rem; }
+    header h1 { margin:0; font-size:1.35rem; }
+    header p { margin:.25rem 0 0; opacity:.9; font-size:.9rem; }
+    main { display:grid; gap:1rem; padding:1rem 1.5rem; max-width:1200px; margin:0 auto;
+           grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+    section { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:1rem; }
+    section.wide { grid-column: 1 / -1; }
+    h2 { margin:0 0 .75rem; font-size:1.05rem; }
+    form { display:grid; grid-template-columns: 1fr 1fr; gap:.6rem .75rem; }
+    label { display:flex; flex-direction:column; font-size:.85rem; color:var(--muted); gap:.2rem; }
+    input, select { font:inherit; padding:.4rem .5rem; border:1px solid var(--border); border-radius:4px; color:var(--text); }
+    input:focus, select:focus, button:focus-visible { outline:3px solid #7aa7e0; outline-offset:1px; }
+    .actions { grid-column: 1 / -1; display:flex; gap:.5rem; flex-wrap:wrap; }
+    button { font:inherit; padding:.45rem .9rem; border-radius:4px; border:1px solid var(--accent);
+             background:var(--accent); color:#fff; cursor:pointer; }
+    button.secondary { background:#fff; color:var(--accent); }
+    button.danger { background:#fff; color:var(--err); border-color:var(--err); }
+    table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    th, td { text-align:left; padding:.4rem .5rem; border-bottom:1px solid var(--border); }
+    th { background:#eef2f7; }
+    .badge { display:inline-block; padding:.05rem .45rem; border-radius:10px; font-size:.8rem; font-weight:600; }
+    .buy { background:#dcf3e5; color:var(--ok); } .sell { background:#fde4e1; color:var(--err); }
+    pre { background:#0f172a; color:#e2e8f0; padding:.75rem; border-radius:6px; overflow:auto;
+          font-size:.82rem; max-height:320px; margin:0; white-space:pre-wrap; word-break:break-word; }
+    .status-ok { color:var(--ok); font-weight:700; } .status-err { color:var(--err); font-weight:700; }
+    .muted { color:var(--muted); font-size:.85rem; }
+    dl { display:grid; grid-template-columns:max-content 1fr; gap:.3rem 1rem; margin:0; font-size:.9rem; }
+    dt { color:var(--muted); } dd { margin:0; font-weight:600; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Trades API Playground</h1>
+  <p>Every button sends a real HTTP request to the Spring Boot app. The last request and response appear at the bottom.</p>
+</header>
+
+<main>
+  <section aria-labelledby="create-h">
+    <h2 id="create-h">Create trade <span class="muted">(POST /trades)</span></h2>
+    <form id="create-form" novalidate>
+      <label>Type
+        <select name="type">
+          <option value="buy">buy</option>
+          <option value="sell">sell</option>
+          <option value="hold">hold (invalid, should get 400)</option>
+        </select>
+      </label>
+      <label>User ID <input name="userId" type="number" value="1"></label>
+      <label>Symbol <input name="symbol" value="ABX"></label>
+      <label>Shares (1-100) <input name="shares" type="number" value="10"></label>
+      <label>Price <input name="price" type="number" value="150"></label>
+      <label>Timestamp (epoch ms) <input name="timestamp" type="number" id="ts"></label>
+      <div class="actions">
+        <button type="submit">Create</button>
+        <button type="button" class="secondary" id="bad-json">Send malformed JSON</button>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="find-h">
+    <h2 id="find-h">Find and filter <span class="muted">(GET /trades)</span></h2>
+    <form id="filter-form">
+      <label>Type
+        <select name="type">
+          <option value="">(any)</option>
+          <option value="buy">buy</option>
+          <option value="sell">sell</option>
+        </select>
+      </label>
+      <label>User ID <input name="userId" type="number" placeholder="(any)"></label>
+      <div class="actions">
+        <button type="submit">Search</button>
+        <button type="button" class="secondary" id="clear-filters">Clear filters</button>
+      </div>
+    </form>
+    <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+    <form id="id-form">
+      <label>Trade ID <input name="id" type="number" value="1"></label>
+      <div class="actions" style="align-self:end">
+        <button type="submit">GET /trades/{id}</button>
+        <button type="button" class="danger" id="delete-btn">DELETE (expect 405)</button>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="config-h">
+    <h2 id="config-h">Active configuration <span class="muted">(GET /config)</span></h2>
+    <dl id="config"></dl>
+    <p class="muted">Restart with <code>-Dspring-boot.run.profiles=qa</code> or <code>staging</code> to see the values change.</p>
+  </section>
+
+  <section class="wide" aria-labelledby="list-h">
+    <h2 id="list-h">Trades <span class="muted" id="list-caption"></span></h2>
+    <table>
+      <caption class="muted" style="text-align:left;padding-bottom:.4rem" id="table-caption">Sorted by id</caption>
+      <thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">User</th><th scope="col">Symbol</th>
+        <th scope="col">Shares</th><th scope="col">Price</th><th scope="col">Timestamp</th></tr></thead>
+      <tbody id="trades"></tbody>
+    </table>
+  </section>
+
+  <section class="wide" aria-labelledby="log-h">
+    <h2 id="log-h">Last request / response</h2>
+    <p id="log-status" aria-live="polite" class="muted">No request yet.</p>
+    <pre id="log-body"></pre>
+  </section>
+</main>
+
+<script>
+  // All user/server data is written with textContent (never innerHTML) to avoid XSS.
+  const $ = (id) => document.getElementById(id);
+  $('ts').value = Date.now();
+
+  async function call(method, url, body, rawBody) {
+    const opts = { method, headers: {} };
+    if (body !== undefined || rawBody !== undefined) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = rawBody !== undefined ? rawBody : JSON.stringify(body);
+    }
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    const statusEl = $('log-status');
+    statusEl.textContent = `${method} ${url}  →  ${res.status} ${res.statusText || ''}`;
+    statusEl.className = res.ok ? 'status-ok' : 'status-err';
+    $('log-body').textContent =
+      (opts.body ? `Request body:\n${opts.body}\n\n` : '') +
+      `Response body:\n${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`;
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function renderTrades(trades, caption) {
+    const tbody = $('trades');
+    tbody.replaceChildren();
+    $('table-caption').textContent = caption;
+    if (!Array.isArray(trades) || trades.length === 0) {
+      const tr = tbody.insertRow(); const td = tr.insertCell();
+      td.colSpan = 7; td.className = 'muted'; td.textContent = 'No trades found.';
+      return;
+    }
+    for (const t of trades) {
+      const tr = tbody.insertRow();
+      tr.insertCell().textContent = t.id;
+      const typeCell = tr.insertCell();
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + (t.type === 'buy' ? 'buy' : 'sell');
+      badge.textContent = t.type;
+      typeCell.appendChild(badge);
+      tr.insertCell().textContent = t.userId;
+      tr.insertCell().textContent = t.symbol;
+      tr.insertCell().textContent = t.shares;
+      tr.insertCell().textContent = t.price;
+      tr.insertCell().textContent = new Date(Number(t.timestamp)).toLocaleString();
+    }
+  }
+
+  async function loadTrades() {
+    const f = new FormData($('filter-form'));
+    const params = new URLSearchParams();
+    if (f.get('type')) params.set('type', f.get('type'));
+    if (f.get('userId')) params.set('userId', f.get('userId'));
+    const qs = params.toString();
+    const r = await call('GET', '/trades' + (qs ? '?' + qs : ''));
+    renderTrades(r.data, qs ? `Filtered: ${qs}` : 'All trades, sorted by id');
+  }
+
+  async function loadConfig() {
+    const res = await fetch('/config');
+    const cfg = await res.json();
+    const dl = $('config'); dl.replaceChildren();
+    for (const [k, v] of Object.entries(cfg)) {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = Array.isArray(v) ? v.join(', ') : String(v);
+      dl.append(dt, dd);
+    }
+  }
+
+  $('create-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const num = (k) => (f.get(k) === '' ? null : Number(f.get(k)));
+    const r = await call('POST', '/trades', {
+      type: f.get('type'), userId: num('userId'), symbol: f.get('symbol'),
+      shares: num('shares'), price: num('price'), timestamp: num('timestamp')
+    });
+    if (r.ok) { $('ts').value = Date.now(); await refreshListQuietly(); }
+  });
+
+  $('bad-json').addEventListener('click', () => call('POST', '/trades', undefined, '{not valid json'));
+
+  $('filter-form').addEventListener('submit', (e) => { e.preventDefault(); loadTrades(); });
+  $('clear-filters').addEventListener('click', () => { $('filter-form').reset(); loadTrades(); });
+
+  $('id-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = new FormData(e.target).get('id');
+    const r = await call('GET', `/trades/${encodeURIComponent(id)}`);
+    if (r.ok) renderTrades([r.data], `Trade ${id}`);
+  });
+  $('delete-btn').addEventListener('click', () => {
+    const id = new FormData($('id-form')).get('id');
+    call('DELETE', `/trades/${encodeURIComponent(id)}`);
+  });
+
+  // Refresh the table after a create without overwriting the create response in the log.
+  async function refreshListQuietly() {
+    const res = await fetch('/trades');
+    renderTrades(await res.json(), 'All trades, sorted by id');
+  }
+
+  loadConfig();
+  refreshListQuietly();
+</script>
+</body>
+</html>
