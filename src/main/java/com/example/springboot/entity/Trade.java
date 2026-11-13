@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,8 +18,18 @@ import lombok.Setter;
  * Wrapper types (Long/Integer) are used instead of primitives on purpose:
  * Query-By-Example ignores null fields, so a probe Trade with only "type"
  * set filters on type alone. Primitives would default to 0 and break that.
+ *
+ * Indexes match the real query patterns:
+ *  - (user_id, type): GET /trades?userId=&type= and the portfolio SUM query. A composite
+ *    index also serves queries on user_id alone (leftmost prefix), not on type alone.
+ *  - symbol: findBySymbolOrderByIdAsc.
+ * ddl-auto creates them here; in production they belong in a Flyway/Liquibase migration.
  */
 @Entity
+@Table(name = "trade", indexes = {
+        @Index(name = "idx_trade_user_type", columnList = "user_id, type"),
+        @Index(name = "idx_trade_symbol", columnList = "symbol")
+})
 @Getter
 @Setter
 @NoArgsConstructor

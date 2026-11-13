@@ -98,6 +98,36 @@ class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.size").value(20)); // app.max-page-size in dev
     }
 
+    @Test
+    void list_negativePage_returns400() throws Exception {
+        mockMvc.perform(get("/users").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.page").value("must be greater than or equal to 0"));
+    }
+
+    @Test
+    void list_zeroPageSize_returns400() throws Exception {
+        mockMvc.perform(get("/users").param("size", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.size").value("must be greater than or equal to 1"));
+    }
+
+    @Test
+    void list_nonNumericPage_returns400() throws Exception {
+        mockMvc.perform(get("/users").param("page", "abc"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void list_pageBeyondLastPage_returnsEmptyContentWithTotals() throws Exception {
+        mockMvc.perform(get("/users").param("page", "5").param("size", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)))
+                .andExpect(jsonPath("$.page").value(5))
+                .andExpect(jsonPath("$.totalElements").value(4))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
     // ---------- create + business validation ----------
 
     @Test

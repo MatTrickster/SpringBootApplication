@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.springboot.entity.Trade;
 import com.example.springboot.repository.TradeRepository;
+import jakarta.persistence.EntityManager;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,9 @@ class TradeRepositoryTest {
 
     @Autowired
     private TradeRepository repository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void seed() {
@@ -36,6 +41,16 @@ class TradeRepositoryTest {
     void jpqlQuery_sumsSharesForUserAndType() {
         assertThat(repository.totalSharesByUserAndType(1, "buy")).isEqualTo(15);
         assertThat(repository.totalSharesByUserAndType(99, "buy")).isZero();
+    }
+
+    @Test
+    void indexesForQueryPatternsExist() {
+        @SuppressWarnings("unchecked")
+        List<String> indexes = entityManager.createNativeQuery(
+                        "SELECT index_name FROM information_schema.indexes WHERE table_name = 'TRADE'")
+                .getResultList();
+
+        assertThat(indexes).contains("IDX_TRADE_USER_TYPE", "IDX_TRADE_SYMBOL");
     }
 
     private static Trade trade(String type, int userId, String symbol, int shares) {

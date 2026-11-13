@@ -1,6 +1,7 @@
 package com.example.springboot.concurrency;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +25,24 @@ class BankAccountTest {
     void tearDown() throws InterruptedException {
         pool.shutdown();
         assertThat(pool.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void deposit_overflow_throwsAndLeavesBalanceUnchanged() {
+        BankAccount account = new BankAccount(Long.MAX_VALUE);
+
+        assertThatThrownBy(() -> account.deposit(1)).isInstanceOf(ArithmeticException.class);
+        assertThat(account.balance()).isEqualTo(Long.MAX_VALUE); // not wrapped to a negative number
+    }
+
+    @Test
+    void invalidAmounts_areRejected() {
+        BankAccount account = new BankAccount(10);
+
+        assertThatThrownBy(() -> account.deposit(0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> account.withdraw(-5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new BankAccount(-1)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(account.balance()).isEqualTo(10);
     }
 
     @Test

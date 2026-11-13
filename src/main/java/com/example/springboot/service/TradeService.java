@@ -1,32 +1,39 @@
 package com.example.springboot.service;
 
-import com.example.springboot.exception.ResourceNotFoundException;
-import java.util.List;
-
-import com.example.springboot.repository.TradeRepository;
-import com.example.springboot.entity.Trade;
 import com.example.springboot.dto.TradeRequest;
+import com.example.springboot.dto.TradeResponse;
+import com.example.springboot.entity.Trade;
+import com.example.springboot.event.TradeCreatedEvent;
+import com.example.springboot.exception.ResourceNotFoundException;
+import com.example.springboot.repository.TradeRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Returns DTOs, not entities. Mapping happens here, inside the transaction, because
+ * spring.jpa.open-in-view=false: a lazy field touched later in the controller or by
+ * Jackson would throw LazyInitializationException.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor // constructor injection (preferred over field @Autowired)
 public class TradeService {
 
     private final TradeRepository tradeRepository;
-    private final TradeEventPublisher tradeEventPublisher; // which bean: see config/TradeEventsConfig
+    private final ApplicationEventPublisher events; // delivered after commit, see event/TradeCreatedListener
 
     @Transactional
-    public Trade create(TradeRequest request) {
+    public TradeResponse create(TradeRequest request) {
         Trade saved = tradeRepository.save(request.toEntity());
         log.info("Created trade id={} symbol={}", saved.getId(), saved.getSymbol());
-        tradeEventPublisher.tradeCreated(saved);
-        return saved;
+        events.publishEvent(TradeCreatedEvent.from(saved));
+        return TradeResponse.from(saved);
     }
 
     /**
@@ -35,23 +42,28 @@ public class TradeService {
      * of optional filters without writing four separate repository methods.
      */
     @Transactional(readOnly = true)
-    public List<Trade> findAll(String type, Integer userId) {
+    public List<TradeResponse> findAll(String type, Integer userId) {
         log.debug("Listing trades type={} userId={}", type, userId);
         Trade probe = Trade.builder().type(type).userId(userId).build();
-        return tradeRepository.findAll(Example.of(probe), Sort.by("id"));
+        return tradeRepository.findAll(Example.of(probe), Sort.by("id")).stream()
+                .map(TradeResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public Trade findById(Long id) {
-        return tradeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Trade", id));
+    public TradeResponse findById(Long id) {
+        return TradeResponse.from(getTrade(id));
     }
 
     /** 404 if missing: Spring Data 3+ deleteById() silently ignores unknown ids. */
     @Transactional
     public void delete(Long id) {
-        Trade trade = findById(id);
-        tradeRepository.delete(trade);
+        tradeRepository.delete(getTrade(id));
         log.info("Deleted trade id={}", id);
+    }
+
+    private Trade getTrade(Long id) {
+        return tradeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Trade", id));
     }
 }

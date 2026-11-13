@@ -1,10 +1,12 @@
 package com.example.springboot.portfolio;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.concurrent.ThreadPoolExecutor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,6 +30,16 @@ class PortfolioControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ThreadPoolExecutor portfolioExecutor;
+
+    @Test
+    void executorIsBoundedFromConfiguration() {
+        assertThat(portfolioExecutor.getMaximumPoolSize()).isEqualTo(4);
+        assertThat(portfolioExecutor.getQueue().remainingCapacity()).isEqualTo(100);
+        assertThat(portfolioExecutor.getRejectedExecutionHandler()).isInstanceOf(ThreadPoolExecutor.AbortPolicy.class);
+    }
 
     @Test
     void summarizesEachUserInRequestOrder() throws Exception {

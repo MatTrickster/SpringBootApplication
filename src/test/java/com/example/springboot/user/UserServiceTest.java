@@ -58,15 +58,30 @@ class UserServiceTest {
     }
 
     @Test
-    void findAll_clampsPageSizeAndNegativePage() {
+    void findAll_rejectsNegativePage() {
+        assertThatThrownBy(() -> service.findAll(null, -1, 10))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Page number must be non-negative");
+        verify(repository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void findAll_rejectsZeroPageSize() {
+        assertThatThrownBy(() -> service.findAll(null, 0, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Page size must be positive");
+    }
+
+    @Test
+    void findAll_clampsExcessivePageSize() {
         given(repository.findAll(any(Pageable.class))).willReturn(Page.empty());
 
-        service.findAll(null, -3, 500);
+        service.findAll(null, 2, 500);
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findAll(captor.capture());
         assertThat(captor.getValue().getPageSize()).isEqualTo(5);
-        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
     }
 
     @Test

@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.springboot.exception.ResourceNotFoundException;
 import com.example.springboot.controller.TradeController;
-import com.example.springboot.entity.Trade;
+import com.example.springboot.dto.TradeResponse;
 import com.example.springboot.service.TradeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +38,7 @@ class TradeControllerWebMvcTest {
     @Test
     void getById_delegatesToService() throws Exception {
         given(tradeService.findById(5L)).willReturn(
-                Trade.builder().id(5L).type("buy").userId(1).symbol("XYZ").shares(1).price(1).timestamp(1L).build());
+                new TradeResponse(5L, "buy", 1, "XYZ", 1, 1, 1L));
 
         mockMvc.perform(get("/trades/5"))
                 .andExpect(status().isOk())

@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,9 +18,12 @@ import lombok.Setter;
 /**
  * Table is "users", not "user": USER is a reserved word in H2 (and Postgres),
  * so an entity named User without @Table fails at startup with a SQL syntax error.
+ *
+ * Indexes: username and email already get one from their unique constraints.
+ * role is filtered by GET /users?role=, so it gets its own.
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = @Index(name = "idx_users_role", columnList = "role"))
 @Getter
 @Setter
 @NoArgsConstructor

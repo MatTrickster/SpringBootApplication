@@ -35,7 +35,7 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.maxPageSize").value(20))
                     .andExpect(jsonPath("$.defaultUser").value("admin"))
                     .andExpect(jsonPath("$.notificationChannel").value("console"))
-                    .andExpect(jsonPath("$.tradeEventPublisher").value("logging"));
+                    .andExpect(jsonPath("$.tradeEventHandler").value("logging"));
         }
     }
 
@@ -55,7 +55,7 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.supportEmail").value("support@example.com"))
                     .andExpect(jsonPath("$.defaultUser").value("qa-user"))
                     // app.trade-events.enabled=false -> havingValue="false" branch
-                    .andExpect(jsonPath("$.tradeEventPublisher").value("noop"));
+                    .andExpect(jsonPath("$.tradeEventHandler").value("noop"));
         }
     }
 
@@ -77,7 +77,7 @@ class ConfigControllerProfilesTest {
                     .andExpect(jsonPath("$.defaultUser").value("alice"))
                     .andExpect(jsonPath("$.notificationChannel").value("email"))
                     // property missing entirely -> matchIfMissing = true picks no-op
-                    .andExpect(jsonPath("$.tradeEventPublisher").value("noop"));
+                    .andExpect(jsonPath("$.tradeEventHandler").value("noop"));
         }
     }
 
@@ -93,7 +93,7 @@ class ConfigControllerProfilesTest {
         void propertyOverrideSelectsLoggingPublisher() throws Exception {
             mockMvc.perform(get("/config"))
                     .andExpect(jsonPath("$.environmentName").value("staging"))
-                    .andExpect(jsonPath("$.tradeEventPublisher").value("logging"));
+                    .andExpect(jsonPath("$.tradeEventHandler").value("logging"));
         }
     }
 }

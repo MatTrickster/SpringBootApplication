@@ -37,6 +37,13 @@ error responses**, **logging levels**.
 | Pagination: `PageRequest`, `Page`, size cap, page DTO | `UserService.findAll`, `dto/PageResponse` |
 | Business validation: duplicates → 409, custom constraint | `UserService.create`, `validation/StockSymbol` |
 | Concurrency: `ExecutorService.invokeAll`, `synchronized`, `Semaphore` | `PortfolioService`, `concurrency/*` |
+| Response DTOs: entities never leave the service layer | `dto/TradeResponse`, `dto/UserResponse` |
+| Bounded `ThreadPoolExecutor`, rejection → 503 + `Retry-After`, timeout → 504 | `ExecutorConfig`, `PortfolioService`, `GlobalExceptionHandler` |
+| `@Min` on `@RequestParam` (Spring 6.1+ method validation) → 400 with field map | `UserController`, `PortfolioController` |
+| Overflow-safe money (`Math.addExact`, long cents) | `concurrency/BankAccount` |
+| `@TransactionalEventListener(AFTER_COMMIT)`, rollback tests | `event/*`, `TradeEventsIntegrationTest` |
+| DB indexes and unique constraints under a real race | `entity/*`, `UserConcurrencyIntegrationTest` |
+| CI: build and test on every push and PR | `.github/workflows/ci.yml` |
 
 ## Commands
 

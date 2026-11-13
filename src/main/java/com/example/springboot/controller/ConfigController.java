@@ -4,8 +4,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.example.springboot.config.AppProperties;
+import com.example.springboot.event.TradeEventHandler;
 import com.example.springboot.service.NotificationService;
-import com.example.springboot.service.TradeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +18,7 @@ public class ConfigController {
     private final Environment environment;
     private final AppProperties appProperties;
     private final NotificationService notificationService;
-    private final TradeEventPublisher tradeEventPublisher;
+    private final TradeEventHandler tradeEventHandler;
 
     public record ConfigResponse(List<String> activeProfiles,
                                  String environmentName,
@@ -27,7 +27,7 @@ public class ConfigController {
                                  String supportEmail,
                                  String defaultUser,
                                  String notificationChannel,
-                                 String tradeEventPublisher) {
+                                 String tradeEventHandler) {
     }
 
     @GetMapping("/config")
@@ -40,7 +40,7 @@ public class ConfigController {
                 appProperties.supportEmail(),
                 appProperties.defaultUser(),
                 notificationService.channel(),
-                tradeEventPublisher.name());
+                tradeEventHandler.name());
     }
 
     /**

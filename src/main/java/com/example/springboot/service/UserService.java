@@ -2,8 +2,8 @@ package com.example.springboot.service;
 
 import com.example.springboot.config.AppProperties;
 import com.example.springboot.dto.UserRequest;
+import com.example.springboot.dto.UserResponse;
 import com.example.springboot.entity.Role;
-import com.example.springboot.entity.User;
 import com.example.springboot.exception.DuplicateResourceException;
 import com.example.springboot.exception.ResourceNotFoundException;
 import com.example.springboot.repository.UserRepository;
@@ -25,8 +25,9 @@ public class UserService {
     private final AppProperties appProperties;
 
     @Transactional(readOnly = true)
-    public User findById(Long id) {
+    public UserResponse findById(Long id) {
         return userRepository.findById(id)
+                .map(UserResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
     }
 
@@ -35,25 +36,36 @@ public class UserService {
      * The username comes from app.default-user, which each profile can override.
      */
     @Transactional(readOnly = true)
-    public User findDefaultUser() {
+    public UserResponse findDefaultUser() {
         String username = appProperties.defaultUser();
         if (username == null || username.isBlank()) {
             throw new IllegalStateException("app.default-user is not configured for this environment");
         }
         log.debug("Resolving default user '{}'", username);
         return userRepository.findByUsername(username)
+                .map(UserResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
     }
 
     /**
      * Pagination with an explicit PageRequest. Page numbers are 0-based.
-     * The page size is clamped to app.max-page-size so a client can't ask for size=1000000.
+     *
+     * Invalid input is rejected, not silently "fixed": page=-1 meaning page 0 hides client bugs.
+     * The controller already returns 400 for these (@Min on the params); these checks guard
+     * other callers. Oversized pages are clamped to app.max-page-size instead of rejected,
+     * which is the common API convention (the response's "size" shows the applied value).
      */
     @Transactional(readOnly = true)
-    public Page<User> findAll(Role role, int page, int size) {
-        int safeSize = Math.min(Math.max(size, 1), appProperties.maxPageSize());
-        Pageable pageable = PageRequest.of(Math.max(page, 0), safeSize, Sort.by("id"));
-        return role == null ? userRepository.findAll(pageable) : userRepository.findByRole(role, pageable);
+    public Page<UserResponse> findAll(Role role, int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page number must be non-negative");
+        }
+        if (size < 1) {
+            throw new IllegalArgumentException("Page size must be positive");
+        }
+        Pageable pageable = PageRequest.of(page, Math.min(size, appProperties.maxPageSize()), Sort.by("id"));
+        return (role == null ? userRepository.findAll(pageable) : userRepository.findByRole(role, pageable))
+                .map(UserResponse::from);
     }
 
     /**
@@ -63,15 +75,15 @@ public class UserService {
      * real guarantee; GlobalExceptionHandler maps that DataIntegrityViolationException to 409 too.
      */
     @Transactional
-    public User create(UserRequest request) {
+    public UserResponse create(UserRequest request) {
         if (userRepository.existsByUsername(request.username())) {
             throw new DuplicateResourceException("User", "username", request.username());
         }
         if (userRepository.existsByEmailIgnoreCase(request.normalizedEmail())) {
             throw new DuplicateResourceException("User", "email", request.normalizedEmail());
         }
-        User saved = userRepository.save(request.toEntity());
-        log.info("Created user id={} username={}", saved.getId(), saved.getUsername());
+        UserResponse saved = UserResponse.from(userRepository.save(request.toEntity()));
+        log.info("Created user id={} username={}", saved.id(), saved.username());
         return saved;
     }
 }

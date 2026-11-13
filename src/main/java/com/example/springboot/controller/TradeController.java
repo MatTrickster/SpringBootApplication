@@ -1,7 +1,7 @@
 package com.example.springboot.controller;
 
-import com.example.springboot.entity.Trade;
 import com.example.springboot.dto.TradeRequest;
+import com.example.springboot.dto.TradeResponse;
 import com.example.springboot.service.TradeService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   GET    /trades/{id}     -> 200, or 404 if missing
  *   DELETE /trades/{id}     -> 204, or 404 if missing
  *   PUT/PATCH /trades/{id}  -> 405 (no handler mapped, Spring returns it for us)
+ *
+ * Request DTO in, response DTO out: the JPA entity never crosses the API boundary.
  */
 @RestController
 @RequestMapping("/trades")
@@ -34,18 +36,18 @@ public class TradeController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Trade create(@Valid @RequestBody TradeRequest request) {
+    public TradeResponse create(@Valid @RequestBody TradeRequest request) {
         return tradeService.create(request);
     }
 
     @GetMapping
-    public List<Trade> findAll(@RequestParam(required = false) String type,
-                               @RequestParam(required = false) Integer userId) {
+    public List<TradeResponse> findAll(@RequestParam(required = false) String type,
+                                       @RequestParam(required = false) Integer userId) {
         return tradeService.findAll(type, userId);
     }
 
     @GetMapping("/{id}")
-    public Trade findById(@PathVariable Long id) {
+    public TradeResponse findById(@PathVariable Long id) {
         return tradeService.findById(id);
     }
 
